@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>테니스 빈자리</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="테니스 빈자리">
+<meta name="theme-color" content="#f6f7f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121512" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f4; --card: #ffffff; --text: #1b1f1b; --muted: #6b726b; --line: #e3e6e0;
+    --accent: #2f7d32; --accent-soft: #e4f1e4; --warn: #b5541c; --warn-soft: #fbeadf;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121512; --card: #1b201b; --text: #e8ece6; --muted: #98a196; --line: #2c332c;
+      --accent: #7cc47f; --accent-soft: #1f3320; --warn: #f0a070; --warn-soft: #3a2519; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+    padding: env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom)); }
+  header { display: flex; align-items: baseline; justify-content: space-between; padding: 16px 0 8px; }
+  h1 { font-size: 22px; margin: 0; }
+  #updated { color: var(--muted); font-size: 13px; }
+  #updated.stale { color: var(--warn); }
+  .tabs { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 12px; scrollbar-width: none; }
+  .tabs button { flex: none; border: 1px solid var(--line); background: var(--card); color: var(--text);
+    border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; }
+  .tabs button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  section.court { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 14px; overflow: hidden; }
+  .court-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .court-head h2 { font-size: 17px; margin: 0; }
+  a.book { background: var(--accent); color: var(--bg); text-decoration: none; font-size: 14px; font-weight: 600;
+    padding: 6px 12px; border-radius: 8px; }
+  .day { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .day:last-child { border-bottom: 0; }
+  .day-label { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  .day-label .we { color: var(--warn); }
+  .slots { display: flex; flex-wrap: wrap; gap: 6px; }
+  .slot { background: var(--accent-soft); color: var(--accent); border-radius: 8px; padding: 4px 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .slot small { color: var(--muted); margin-left: 4px; }
+  .empty, .notice { padding: 14px; color: var(--muted); font-size: 14px; }
+  .notice.warn { color: var(--warn); background: var(--warn-soft); }
+  h3.links-title { font-size: 15px; color: var(--muted); margin: 22px 0 8px; }
+  .links { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .links a { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+    color: var(--text); text-decoration: none; }
+  .links a span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  #refresh { border: 0; background: none; color: var(--accent); font: inherit; font-size: 14px; padding: 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>테니스 빈자리</h1>
+  <div><span id="updated">불러오는 중…</span> · <button id="refresh" type="button">새로고침</button></div>
+</header>
+<div class="tabs" id="tabs" role="toolbar" aria-label="코트 선택"></div>
+<main id="list"></main>
+<h3 class="links-title">바로가기 (자동 수집 안 함)</h3>
+<div class="links" id="links"></div>
+
+<script>
+const WEEK = ['일','월','화','수','목','금','토'];
+let data = null, filter = 'all';
+try { filter = localStorage.getItem('filter') || 'all'; } catch {}
+
+function ago(iso) {
+  const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (m < 1) return '방금 업데이트';
+  if (m < 60) return `${m}분 전 업데이트`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h}시간 전 업데이트`;
+  return `${Math.floor(h / 24)}일 전 업데이트`;
+}
+function dayLabel(d) {
+  const dt = new Date(d + 'T00:00:00+09:00');
+  const w = dt.getDay();
+  const txt = `${dt.getMonth() + 1}/${dt.getDate()} (${WEEK[w]})`;
+  return (w === 0 || w === 6) ? `<span class="we">${txt}</span>` : txt;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function render() {
+  const upd = document.getElementById('updated');
+  upd.textContent = ago(data.updatedAt);
+  upd.classList.toggle('stale', Date.now() - new Date(data.updatedAt) > 6 * 3600e3);
+
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = [['all', '전체'], ...data.courts.map(c => [c.id, c.name])]
+    .map(([id, n]) => `<button type="button" data-id="${esc(id)}" aria-pressed="${filter === id}">${esc(n)}</button>`).join('');
+
+  const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  document.getElementById('list').innerHTML = data.courts.filter(c => filter === 'all' || c.id === filter).map(c => {
+    const msg = { login_required: '로그인 세션 만료 — 맥북에서 재로그인 필요', maintenance: '예약 사이트 점검 중',
+      error: `수집 실패: ${c.error || ''}` }[c.status];
+    let body = msg ? `<div class="notice warn">${esc(msg)}${c.checkedAt ? ` · 아래는 ${esc(ago(c.checkedAt).replace(' 업데이트', ''))} 기준` : ''}</div>` : '';
+    const days = (c.days || []).filter(d => d.date >= today && d.slots.length);
+    if (days.length) body += days.map(d => `<div class="day"><div class="day-label">${dayLabel(d.date)}</div><div class="slots">${
+        d.slots.map(s => `<span class="slot">${esc(s.time)}<small>${s.courts.length}면</small></span>`).join('')
+      }</div></div>`).join('');
+    else if (!msg) body = `<div class="empty">빈자리 없음</div>`;
+    return `<section class="court"><div class="court-head"><h2>${esc(c.name)}</h2><a class="book" href="${esc(c.bookUrl)}" target="_blank" rel="noopener">예약하기</a></div>${body}</section>`;
+  }).join('');
+
+  document.getElementById('links').innerHTML = (data.links || []).map(l =>
+    `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)}<span>${esc(l.note || '')}</span></a>`).join('');
+}
+
+document.getElementById('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  filter = b.dataset.id; try { localStorage.setItem('filter', filter); } catch {}
+  render();
+});
+
+async function load() {
+  try {
+    const r = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
+    data = await r.json(); render();
+  } catch (e) {
+    document.getElementById('updated').textContent = '불러오기 실패';
+  }
+}
+document.getElementById('refresh').addEventListener('click', load);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+load();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
