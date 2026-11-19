@@ -9,7 +9,7 @@
 | `npm run login -- jungnang` | 중랑만 재로그인 (노원 세션 유지) |
 | `npm run scrape` | 1회 수집 → `docs/data.json` (`DEBUG=1`로 상세 로그) |
 | `./scripts/run.sh` | 수집 + git push (launchd가 07~23시 매시 정각 실행) |
-| `./scripts/install-schedule.sh` / `uninstall` | launchd 등록 / 제거 (로그: `run.log`) |
+| `./scripts/install-schedule.sh` / `uninstall` | launchd 등록 / 제거 (로그: `~/Library/Logs/tennis-court-checker.log`) |
 | `node scripts/screenshot.mjs` | 웹앱을 아이폰 크기로 렌더링해 `preview.png` |
 
 ## 자동 재로그인 (키체인)

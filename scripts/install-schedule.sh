@@ -14,8 +14,8 @@ if [ "${1:-}" = uninstall ]; then rm -f "$PLIST"; echo "제거됨"; exit 0; fi
   echo '<plist version="1.0"><dict>'
   echo "  <key>Label</key><string>$LABEL</string>"
   echo "  <key>ProgramArguments</key><array><string>/bin/zsh</string><string>$ROOT/scripts/run.sh</string></array>"
-  echo "  <key>StandardOutPath</key><string>$ROOT/run.log</string>"
-  echo "  <key>StandardErrorPath</key><string>$ROOT/run.log</string>"
+  echo "  <key>StandardOutPath</key><string>$HOME/Library/Logs/tennis-court-checker.log</string>"
+  echo "  <key>StandardErrorPath</key><string>$HOME/Library/Logs/tennis-court-checker.log</string>"
   echo '  <key>StartCalendarInterval</key><array>'
   for h in {7..23}; do echo "    <dict><key>Hour</key><integer>$h</integer><key>Minute</key><integer>0</integer></dict>"; done
   echo '  </array>'
@@ -23,4 +23,4 @@ if [ "${1:-}" = uninstall ]; then rm -f "$PLIST"; echo "제거됨"; exit 0; fi
 } > "$PLIST"
 
 launchctl bootstrap gui/$UID "$PLIST"
-echo "등록 완료: $PLIST (07~23시 매시 정각, 로그: $ROOT/run.log)"
+echo "등록 완료: $PLIST (07~23시 매시 정각, 로그: ~/Library/Logs/tennis-court-checker.log)"
